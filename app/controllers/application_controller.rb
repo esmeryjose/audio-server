@@ -1,5 +1,5 @@
 class ApplicationController < ActionController::API
-  
+
   include ActionController::HttpAuthentication::Token::ControllerMethods
   before_action :authorized
 
@@ -10,7 +10,8 @@ class ApplicationController < ActionController::API
   end
 
   def decode(jwt_token)
-    JWT.decode(jwt_token, ENV["SOME_SECRET"], true, { algorithm: ENV["SOME_SUPER_SECRET"]})
+    my_algorithm = { algorithm: ENV["SOME_SUPER_SECRET"]}
+    JWT.decode(jwt_token, ENV["SOME_SECRET"], true, my_algorithm)[0]
   end
 
   def current_user_id
@@ -27,8 +28,8 @@ class ApplicationController < ActionController::API
       rescue JWT::DecodeError
         return nil
       end
-      if decoded_token[0]["user_id"]
-        @current_user ||= User.find(decoded_token[0]["user_id"])
+      if decoded_token["user_id"]
+        @current_user ||= User.find(decoded_token["user_id"])
       end
     end
   end
@@ -38,7 +39,19 @@ class ApplicationController < ActionController::API
   end
 
   def authorized
-    render json: {message: "Not welcome" }, status: 401 unless logged_in?
+    logged_in? ?
+    check_for_refresh(current_user) :
+    (render json: {message: "Not welcome" }, status: 401)
+  end
+
+  def check_for_refresh(current_user)
+    if current_user.access_token_expired?
+      refresh_token = decode(current_user.refresh_token)
+      token = refresh_token["token"]
+      access_token = SpotifyAdapter.refresh_access_token(token)
+      encodedAccess = issue_token({token: access_token})
+      current_user.update(access_token: encodedAccess)
+    end
   end
 
 end

@@ -6,6 +6,7 @@ class Api::V1::SessionsController < ApplicationController
   end
 
   def create
+
     query_params = {
       client_id: ENV["CLIENT_ID"],
       response_type: "code",
@@ -13,6 +14,7 @@ class Api::V1::SessionsController < ApplicationController
       scope: "user-library-read user-library-modify user-top-read user-modify-playback-state playlist-modify-public",
       show_dialog: true
     }
+
     url = "https://accounts.spotify.com/authorize"
     redirect_to "#{url}?#{query_params.to_query}"
   end
